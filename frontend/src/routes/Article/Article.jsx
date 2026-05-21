@@ -16,6 +16,21 @@ function Article() {
   const navigate = useNavigate();
   const { slug } = useParams();
 
+  const wordCount = (() => {
+    if (!body) return 0;
+    const chineseChars = (body.match(/[\u4e00-\u9fa5]/g) || []).length;
+    const englishWords = (body.match(/[a-zA-Z]+/g) || []).length;
+    return chineseChars + englishWords;
+  })();
+
+  const readingMinutes = (() => {
+    if (wordCount === 0) return 0;
+    const chineseChars = (body.match(/[\u4e00-\u9fa5]/g) || []).length;
+    const englishWords = (body.match(/[a-zA-Z]+/g) || []).length;
+    const minutes = Math.ceil(chineseChars / 300 + englishWords / 200);
+    return Math.max(1, minutes);
+  })();
+
   useEffect(() => {
     if (state) return;
 
@@ -25,7 +40,7 @@ function Article() {
         console.error(error);
         navigate("/not-found", { replace: true });
       });
-  }, [isAuth, slug, headers, state, navigate]);
+  }, [slug, headers, state, navigate]);
 
   return (
     <div className="article-page">
@@ -40,6 +55,11 @@ function Article() {
         <div className="row article-content">
           <div className="col-md-12">
             {body && <Markdown options={{ forceBlock: true }}>{body}</Markdown>}
+            {wordCount > 0 && (
+              <p className="text-muted small mt-3">
+                字数：{wordCount} · 预计阅读时间：{readingMinutes} 分钟
+              </p>
+            )}
             <ArticleTags tagList={tagList} />
           </div>
         </div>
