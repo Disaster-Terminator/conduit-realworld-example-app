@@ -40,6 +40,9 @@ function Article() {
         <div className="row article-content">
           <div className="col-md-12">
             {body && <Markdown options={{ forceBlock: true }}>{body}</Markdown>}
+            <p className="text-muted mt-3 mb-0">
+              {body ? body.trim().split(/\s+/).filter(Boolean).length : 0} 字 · 预计阅读时间 {Math.max(1, Math.ceil((body ? body.trim().split(/\s+/).filter(Boolean).length : 0) / 200))} 分钟
+            </p>
             <ArticleTags tagList={tagList} />
           </div>
         </div>
