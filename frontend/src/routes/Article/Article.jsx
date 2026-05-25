@@ -15,6 +15,9 @@ function Article() {
   const { headers, isAuth } = useAuth();
   const navigate = useNavigate();
   const { slug } = useParams();
+  
+  const wordCount = (body || "").trim() ? body.trim().split(/\s+/).length : 0;
+  const readingTime = Math.max(1, Math.ceil(wordCount / 200));
 
   useEffect(() => {
     if (state) return;
@@ -40,6 +43,9 @@ function Article() {
         <div className="row article-content">
           <div className="col-md-12">
             {body && <Markdown options={{ forceBlock: true }}>{body}</Markdown>}
+            <p className="text-muted mt-3">
+              {wordCount} 字 · 约 {readingTime} 分钟阅读
+            </p>
             <ArticleTags tagList={tagList} />
           </div>
         </div>
