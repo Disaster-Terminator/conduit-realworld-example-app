@@ -7,8 +7,13 @@ function TagButton({ tagsList }) {
     changeTab(e, "tag");
   };
 
-  return tagsList.slice(0, 50).map((name) => (
-    <button className="tag-pill tag-default" key={name} onClick={handleClick}>
+  return tagsList.slice(0, 50).map((name, index) => (
+    <button
+      type="button"
+      className={`tag-pill ${index < 5 ? 'tag-badge' : 'tag-default'}`}
+      key={name}
+      onClick={handleClick}
+    >
       {name}
     </button>
   ));
