@@ -40,6 +40,16 @@ function Article() {
         <div className="row article-content">
           <div className="col-md-12">
             {body && <Markdown options={{ forceBlock: true }}>{body}</Markdown>}
+            <p className="text-muted">
+              {(() => {
+                const text = body || "";
+                const chineseChars = (text.match(/[\u4e00-\u9fa5]/g) || []).length;
+                const englishWords = (text.match(/[a-zA-Z0-9]+/g) || []).length;
+                const wordCount = chineseChars + englishWords;
+                const readingTime = Math.max(0, Math.ceil(wordCount / 200));
+                return `${wordCount} 字，预计阅读 ${readingTime} 分钟`;
+              })()}
+            </p>
             <ArticleTags tagList={tagList} />
           </div>
         </div>
