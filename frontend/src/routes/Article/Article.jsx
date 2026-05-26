@@ -16,6 +16,9 @@ function Article() {
   const navigate = useNavigate();
   const { slug } = useParams();
 
+  const wordCount = (body || "").trim().split(/\s+/).filter(Boolean).length;
+  const readingTimeMinutes = wordCount === 0 ? 0 : Math.ceil(wordCount / 200);
+
   useEffect(() => {
     if (state) return;
 
@@ -40,6 +43,9 @@ function Article() {
         <div className="row article-content">
           <div className="col-md-12">
             {body && <Markdown options={{ forceBlock: true }}>{body}</Markdown>}
+            <p className="text-muted mt-3 mb-0">
+              {wordCount} 字 · 预计阅读 {readingTimeMinutes} 分钟
+            </p>
             <ArticleTags tagList={tagList} />
           </div>
         </div>
