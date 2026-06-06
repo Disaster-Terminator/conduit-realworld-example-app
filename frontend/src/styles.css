@@ -1524,3 +1524,15 @@ footer > .container {
   margin-right: 5px;
   cursor: pointer;
 }
+
+/* ============================================================================
+ * ARTICLE STATS (word count + reading time)
+ * ============================================================================ */
+
+.article-stats {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  text-align: center;
+  margin: 1.5rem 0 0.5rem 0;
+  font-family: 'Lora', serif;
+}
