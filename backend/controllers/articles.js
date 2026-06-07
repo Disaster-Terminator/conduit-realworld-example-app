@@ -23,7 +23,14 @@ const allArticles = async (req, res, next) => {
   try {
     const { loggedUser } = req;
 
-    const { author, tag, favorited, limit = 3, offset = 0 } = req.query;
+    const {
+      author,
+      tag,
+      favorited,
+      limit = 3,
+      offset = 0,
+      status,
+    } = req.query;
     const searchOptions = {
       include: [
         {
@@ -43,6 +50,23 @@ const allArticles = async (req, res, next) => {
       offset: offset * limit,
       order: [["createdAt", "DESC"]],
     };
+
+    // Default behavior: drafts are hidden from public lists.
+    // Drafts are only returned when the viewer requests their own drafts
+    // (status=draft combined with author=loggedUser.username).
+    const wantsDrafts = status === "draft";
+    const requestingOwnDrafts =
+      wantsDrafts && loggedUser && author === loggedUser.username;
+
+    if (wantsDrafts && !requestingOwnDrafts) {
+      return res.json({ articles: [], articlesCount: 0 });
+    }
+
+    if (requestingOwnDrafts) {
+      searchOptions.where = { status: "draft" };
+    } else {
+      searchOptions.where = { status: "published" };
+    }
 
     let articles = { rows: [], count: 0 };
     if (favorited) {
@@ -76,10 +100,21 @@ const createArticle = async (req, res, next) => {
     const { loggedUser } = req;
     if (!loggedUser) throw new UnauthorizedError();
 
-    const { title, description, body, tagList } = req.body.article;
+    const {
+      title,
+      description,
+      body,
+      tagList,
+      status: articleStatus,
+    } = req.body.article;
     if (!title) throw new FieldRequiredError("A title");
     if (!description) throw new FieldRequiredError("A description");
     if (!body) throw new FieldRequiredError("An article body");
+
+    const status =
+      articleStatus === "draft" || articleStatus === "published"
+        ? articleStatus
+        : "published";
 
     const slug = slugify(title);
     const slugInDB = await Article.findOne({ where: { slug: slug } });
@@ -90,6 +125,7 @@ const createArticle = async (req, res, next) => {
       title: title,
       description: description,
       body: body,
+      status,
     });
 
     for (const tag of tagList) {
@@ -132,10 +168,13 @@ const articlesFeed = async (req, res, next) => {
       limit: parseInt(limit),
       offset: offset * limit,
       order: [["createdAt", "DESC"]],
-      where: { userId: authors.map((author) => author.id) },
+      where: {
+        userId: authors.map((author) => author.id),
+        status: "published",
+      },
     });
 
-    for (const article of articles.rows) {
+    for (let article of articles.rows) {
       const articleTags = await article.getTagList();
 
       appendTagList(articleTags, article);
@@ -160,6 +199,14 @@ const singleArticle = async (req, res, next) => {
       include: includeOptions,
     });
     if (!article) throw new NotFoundError("Article");
+
+    // Drafts are hidden from non-authors; do not reveal their existence.
+    if (
+      article.status === "draft" &&
+      (!loggedUser || loggedUser.id !== article.author.id)
+    ) {
+      throw new NotFoundError("Article");
+    }
 
     appendTagList(article.tagList, article);
     await appendFollowers(loggedUser, article);
@@ -188,13 +235,16 @@ const updateArticle = async (req, res, next) => {
       throw new ForbiddenError("article");
     }
 
-    const { title, description, body } = req.body.article;
+    const { title, description, body, status } = req.body.article;
     if (title) {
       article.slug = slugify(title);
       article.title = title;
     }
     if (description) article.description = description;
     if (body) article.body = body;
+    if (status === "draft" || status === "published") {
+      article.status = status;
+    }
     await article.save();
 
     appendTagList(article.tagList, article);

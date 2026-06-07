@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import getArticle from "../../services/getArticle";
@@ -14,6 +14,7 @@ function ArticleEditorForm() {
   );
   const [errorMessage, setErrorMessage] = useState("");
   const { isAuth, headers, loggedUser } = useAuth();
+  const pendingStatusRef = useRef("published");
 
   const navigate = useNavigate();
   const { slug } = useParams();
@@ -51,8 +52,17 @@ function ArticleEditorForm() {
   const formSubmit = (e) => {
     e.preventDefault();
 
-    setArticle({ headers, slug, body, description, tagList, title })
-      .then((slug) => navigate(`/article/${slug}`))
+    const submitStatus = pendingStatusRef.current;
+    const formState = { headers, slug, body, description, tagList, title };
+
+    setArticle({ ...formState, status: submitStatus })
+      .then((article) => {
+        if (submitStatus === "draft") {
+          navigate(`/profile/${loggedUser.username}/drafts`);
+        } else {
+          navigate(`/article/${article.slug}`);
+        }
+      })
       .catch(setErrorMessage);
   };
 
@@ -99,7 +109,22 @@ function ArticleEditorForm() {
           <div className="tag-list"></div>
         </FormFieldset>
 
-        <button className="btn btn-lg pull-xs-right btn-primary" type="submit">
+        <button
+          className="btn btn-lg pull-xs-right btn-outline-primary"
+          type="submit"
+          onClick={() => {
+            pendingStatusRef.current = "draft";
+          }}
+        >
+          Save Draft
+        </button>{" "}
+        <button
+          className="btn btn-lg pull-xs-right btn-primary"
+          type="submit"
+          onClick={() => {
+            pendingStatusRef.current = "published";
+          }}
+        >
           {slug ? "Update Article" : "Publish Article"}
         </button>
       </fieldset>
