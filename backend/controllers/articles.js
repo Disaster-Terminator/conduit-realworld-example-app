@@ -195,6 +195,11 @@ const updateArticle = async (req, res, next) => {
     }
     if (description) article.description = description;
     if (body) article.body = body;
+    // Sequelize (timestamps: true on Article) 会在 save() 的 UPDATE 语句里
+    // 自动把 updatedAt 刷新为 NOW()。这里显式赋值让"update 必刷新 updatedAt"
+    // 的契约在源码里一目了然：即便后续有人误把 timestamps 改成 false，写入路径
+    // 仍会带上新时间，避免静默破坏前端"最后编辑于 X 时间前"的语义。
+    article.updatedAt = new Date();
     await article.save();
 
     appendTagList(article.tagList, article);
