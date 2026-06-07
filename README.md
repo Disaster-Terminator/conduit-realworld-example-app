@@ -14,6 +14,49 @@ This codebase was created to demonstrate a fully fledged fullstack application b
 
 These instructions will help you install and run the project on your local machine for development and testing.
 
+### Quick Demo Startup
+
+For local demos and coding-agent evaluation, this fork includes a one-command setup path that keeps generated dependencies, `.env` files, and database data out of git.
+
+Prerequisites:
+
+- Node.js `v18.11.0+`
+- NPM
+- Docker with Docker Compose
+
+Start the app:
+
+```bash
+npm run dev:demo
+```
+
+The script will:
+
+- run `npm install` when `node_modules` is missing;
+- create `backend/.env` only if it does not already exist;
+- start a local PostgreSQL container from `docker-compose.db.yml` on `127.0.0.1:15433`;
+- seed demo users, articles, and tags with `backend/seed-demo.js`;
+- start the frontend on [`http://localhost:3000`](http://localhost:3000) and the API on [`http://localhost:3001`](http://localhost:3001).
+
+Demo login:
+
+```text
+email: example1@mail.com
+password: examplePwd1
+```
+
+In a second terminal, run a basic smoke check:
+
+```bash
+npm run dev:demo:smoke
+```
+
+If you only want to prepare dependencies, `.env`, database, and seed data without starting the dev servers, run:
+
+```bash
+npm run dev:demo:setup
+```
+
 ### Prerequisites
 
 Before you run the project, make sure that you have the following tools and software installed on your computer:
