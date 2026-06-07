@@ -25,6 +25,10 @@ function run(command, args, options = {}) {
   }
 }
 
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 function ensureBackendEnv() {
   if (existsSync("backend/.env")) {
     console.log("[demo] backend/.env already exists; leaving it unchanged");
@@ -84,10 +88,25 @@ async function assertPortAvailable(port) {
   }
 }
 
+async function waitForPostgresReady({ timeoutMs }) {
+  const started = Date.now();
+  while (Date.now() - started <= timeoutMs) {
+    const result = spawnSync(
+      "docker",
+      ["compose", "-f", "docker-compose.db.yml", "exec", "-T", "conduit_db", "pg_isready", "-d", "conduit_dev", "-U", "conduit"],
+      { stdio: "pipe", shell: process.platform === "win32" },
+    );
+    if (result.status === 0) return;
+    await delay(500);
+  }
+  throw new Error("Timed out waiting for Postgres to accept connections");
+}
+
 ensureBackendEnv();
 ensureDependencies();
 run("docker", ["compose", "-f", "docker-compose.db.yml", "up", "-d"]);
 await waitForPort({ host: "127.0.0.1", port: 5433, timeoutMs: 30000 });
+await waitForPostgresReady({ timeoutMs: 30000 });
 run("node", ["backend/seed-demo.js"]);
 
 if (setupOnly) {
