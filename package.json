@@ -17,6 +17,9 @@
   ],
   "scripts": {
     "dev": "concurrently --names 'Node,Vite' -c 'green,blue' 'npm run dev -w backend' 'npm run dev -w frontend'",
+    "dev:demo": "node scripts/dev-demo.mjs",
+    "dev:demo:setup": "node scripts/dev-demo.mjs --setup-only",
+    "dev:demo:smoke": "node scripts/dev-smoke.mjs",
     "sqlz": "npx -w backend sequelize-cli",
     "start": "npm run build -w frontend && npm run start -w backend",
     "test": "vitest"
@@ -24,6 +27,7 @@
   "devDependencies": {
     "@vitejs/plugin-react-swc": "^4.2.3",
     "concurrently": "^9.2.1",
+    "jsdom": "^29.1.1",
     "vitest": "^4.0.18"
   }
 }
