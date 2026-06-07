@@ -5,13 +5,20 @@ import getArticle from "../../services/getArticle";
 import setArticle from "../../services/setArticle";
 import FormFieldset from "../FormFieldset";
 
-const emptyForm = { title: "", description: "", body: "", tagList: "" };
+const emptyForm = {
+  title: "",
+  description: "",
+  body: "",
+  tagList: "",
+  status: "published",
+};
 
 function ArticleEditorForm() {
   const { state } = useLocation();
-  const [{ title, description, body, tagList }, setForm] = useState(
-    state || emptyForm,
-  );
+  const [
+    { title, description, body, tagList, status },
+    setForm,
+  ] = useState(state || emptyForm);
   const [errorMessage, setErrorMessage] = useState("");
   const { isAuth, headers, loggedUser } = useAuth();
 
@@ -25,10 +32,16 @@ function ArticleEditorForm() {
     if (state || !slug) return;
 
     getArticle({ headers, slug })
-      .then(({ author: { username }, body, description, tagList, title }) => {
+      .then(({ author: { username }, body, description, tagList, title, status }) => {
         if (username !== loggedUser.username) redirect();
 
-        setForm({ body, description, tagList, title });
+        setForm({
+          body,
+          description,
+          tagList,
+          title,
+          status: status || "published",
+        });
       })
       .catch(console.error);
 
@@ -48,16 +61,34 @@ function ArticleEditorForm() {
     setForm((form) => ({ ...form, tagList: value.split(/,| /) }));
   };
 
-  const formSubmit = (e) => {
+  const submit = (e, nextStatus) => {
     e.preventDefault();
-
-    setArticle({ headers, slug, body, description, tagList, title })
-      .then((slug) => navigate(`/article/${slug}`))
+    const targetStatus = nextStatus || status;
+    setArticle({
+      body,
+      description,
+      headers,
+      slug,
+      status: targetStatus,
+      tagList,
+      title,
+    })
+      .then(({ slug: returnedSlug, status: returnedStatus }) => {
+        if (returnedStatus === "draft") {
+          navigate(`/editor/${returnedSlug}`);
+        } else {
+          navigate(`/article/${returnedSlug}`);
+        }
+      })
       .catch(setErrorMessage);
   };
 
+  const isDraft = status === "draft";
+  const descriptionRequired = !isDraft;
+  const bodyRequired = !isDraft;
+
   return (
-    <form onSubmit={formSubmit}>
+    <form onSubmit={submit}>
       <fieldset>
         {errorMessage && <span className="error-messages">{errorMessage}</span>}
         <FormFieldset
@@ -72,7 +103,7 @@ function ArticleEditorForm() {
           normal
           placeholder="What's this article about?"
           name="description"
-          required
+          required={descriptionRequired}
           value={description}
           handler={inputHandler}
         ></FormFieldset>
@@ -83,7 +114,7 @@ function ArticleEditorForm() {
             rows="8"
             placeholder="Write your article (in markdown)"
             name="body"
-            required
+            required={bodyRequired}
             value={body}
             onChange={inputHandler}
           ></textarea>
@@ -99,7 +130,30 @@ function ArticleEditorForm() {
           <div className="tag-list"></div>
         </FormFieldset>
 
-        <button className="btn btn-lg pull-xs-right btn-primary" type="submit">
+        {isDraft && (
+          <button
+            className="btn btn-lg pull-xs-right btn-outline-primary"
+            type="button"
+            onClick={(e) => submit(e, "published")}
+          >
+            Publish
+          </button>
+        )}
+
+        {!isDraft && !slug && (
+          <button
+            className="btn btn-lg pull-xs-right btn-outline-primary"
+            type="button"
+            onClick={(e) => submit(e, "draft")}
+          >
+            Save Draft
+          </button>
+        )}
+
+        <button
+          className="btn btn-lg pull-xs-right btn-primary"
+          type="submit"
+        >
           {slug ? "Update Article" : "Publish Article"}
         </button>
       </fieldset>

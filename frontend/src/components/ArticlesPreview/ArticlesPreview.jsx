@@ -16,6 +16,7 @@ function ArticlesPreview({ articles, loading, updateArticles }) {
 
   return articles?.length > 0 ? (
     articles.map((article) => {
+      const isDraft = article.status === "draft";
       return (
         <div className="article-preview" key={article.slug}>
           <ArticleMeta author={article.author} createdAt={article.createdAt}>
@@ -28,13 +29,18 @@ function ArticlesPreview({ articles, loading, updateArticles }) {
             />
           </ArticleMeta>
           <Link
-            to={`/article/${article.slug}`}
+            to={isDraft ? `/editor/${article.slug}` : `/article/${article.slug}`}
             state={article}
             className="preview-link"
           >
-            <h1>{article.title}</h1>
+            <h1>
+              {article.title}{" "}
+              {isDraft && (
+                <span className="tag-pill tag-outline">Draft</span>
+              )}
+            </h1>
             <p>{article.description}</p>
-            <span>Read more...</span>
+            <span>{isDraft ? "Continue editing..." : "Read more..."}</span>
             <ArticleTags tagList={article.tagList} />
           </Link>
         </div>

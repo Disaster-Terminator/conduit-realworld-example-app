@@ -1,10 +1,14 @@
-import { Outlet, useLocation } from "react-router-dom";
+import { Outlet, useLocation, useParams } from "react-router-dom";
 import AuthorInfo from "../../components/AuthorInfo";
 import ContainerRow from "../../components/ContainerRow";
 import NavItem from "../../components/NavItem";
+import { useAuth } from "../../context/AuthContext";
 
 function Profile() {
   const { state } = useLocation();
+  const { username } = useParams();
+  const { isAuth, loggedUser } = useAuth();
+  const showDrafts = isAuth && loggedUser.username === username;
 
   return (
     <div className="profile-page">
@@ -20,6 +24,9 @@ function Profile() {
             <ul className="nav nav-pills outline-active">
               <NavItem text="My Articles" url="" state={state} />
               <NavItem text="Favorited Articles" url="favorites" state={state} />
+              {showDrafts && (
+                <NavItem text="Drafts" url="drafts" state={state} />
+              )}
             </ul>
           </div>
           <Outlet />

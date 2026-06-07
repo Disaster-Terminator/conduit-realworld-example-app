@@ -1,3 +1,5 @@
+const { NotFoundError } = require("./customErrors");
+
 const slugify = (string) => {
   return string.trim().toLowerCase().replace(/\W|_/g, "-");
 };
@@ -39,4 +41,26 @@ const appendFollowers = async (loggedUser, toAppend) => {
   }
 };
 
-module.exports = { slugify, appendTagList, appendFavorites, appendFollowers };
+const ARTICLE_STATUS = Object.freeze({
+  DRAFT: "draft",
+  PUBLISHED: "published",
+});
+
+const assertCanAccessArticle = ({ loggedUser, article }) => {
+  if (!article) return;
+  if (article.status !== ARTICLE_STATUS.DRAFT) return;
+
+  const ownerId = article.userId ?? article.author?.id;
+  if (!loggedUser || loggedUser.id !== ownerId) {
+    throw new NotFoundError("Article");
+  }
+};
+
+module.exports = {
+  slugify,
+  appendTagList,
+  appendFavorites,
+  appendFollowers,
+  ARTICLE_STATUS,
+  assertCanAccessArticle,
+};
