@@ -18,12 +18,31 @@ const includeOptions = [
   { model: User, as: "author", attributes: { exclude: ["email"] } },
 ];
 
+const VALID_STATUSES = new Set(["draft", "published"]);
+const DEFAULT_STATUS = "published";
+
+const resolveStatus = (rawStatus) =>
+  VALID_STATUSES.has(rawStatus) ? rawStatus : DEFAULT_STATUS;
+
+const buildStatusWhere = (status) => ({ status });
+
 //? All Articles - by Author/by Tag/Favorited by user
 const allArticles = async (req, res, next) => {
   try {
     const { loggedUser } = req;
 
     const { author, tag, favorited, limit = 3, offset = 0 } = req.query;
+    const status = resolveStatus(req.query.status);
+
+    if (status === "draft") {
+      if (!loggedUser) throw new UnauthorizedError();
+      if (author && author !== loggedUser.username) {
+        throw new ForbiddenError("article");
+      }
+    }
+
+    const effectiveAuthor = status === "draft" ? loggedUser.username : author;
+
     const searchOptions = {
       include: [
         {
@@ -36,12 +55,13 @@ const allArticles = async (req, res, next) => {
           model: User,
           as: "author",
           attributes: { exclude: ["email"] },
-          ...(author && { where: { username: author } }),
+          ...(effectiveAuthor && { where: { username: effectiveAuthor } }),
         },
       ],
+      where: buildStatusWhere(status),
       limit: parseInt(limit),
       offset: offset * limit,
-      order: [["createdAt", "DESC"]],
+      order: status === "draft" ? [["updatedAt", "DESC"]] : [["createdAt", "DESC"]],
     };
 
     let articles = { rows: [], count: 0 };
@@ -77,9 +97,14 @@ const createArticle = async (req, res, next) => {
     if (!loggedUser) throw new UnauthorizedError();
 
     const { title, description, body, tagList } = req.body.article;
+    const status = resolveStatus(req.body.article?.status);
+
     if (!title) throw new FieldRequiredError("A title");
-    if (!description) throw new FieldRequiredError("A description");
-    if (!body) throw new FieldRequiredError("An article body");
+
+    if (status === "published") {
+      if (!description) throw new FieldRequiredError("A description");
+      if (!body) throw new FieldRequiredError("An article body");
+    }
 
     const slug = slugify(title);
     const slugInDB = await Article.findOne({ where: { slug: slug } });
@@ -90,6 +115,7 @@ const createArticle = async (req, res, next) => {
       title: title,
       description: description,
       body: body,
+      status,
     });
 
     for (const tag of tagList) {
@@ -129,13 +155,16 @@ const articlesFeed = async (req, res, next) => {
 
     const articles = await Article.findAndCountAll({
       include: includeOptions,
+      where: {
+        ...buildStatusWhere(DEFAULT_STATUS),
+        userId: authors.map((author) => author.id),
+      },
       limit: parseInt(limit),
       offset: offset * limit,
       order: [["createdAt", "DESC"]],
-      where: { userId: authors.map((author) => author.id) },
     });
 
-    for (const article of articles.rows) {
+    for (let article of articles.rows) {
       const articleTags = await article.getTagList();
 
       appendTagList(articleTags, article);
@@ -160,6 +189,13 @@ const singleArticle = async (req, res, next) => {
       include: includeOptions,
     });
     if (!article) throw new NotFoundError("Article");
+
+    if (
+      article.status === "draft" &&
+      (!loggedUser || article.author.id !== loggedUser.id)
+    ) {
+      throw new NotFoundError("Article");
+    }
 
     appendTagList(article.tagList, article);
     await appendFollowers(loggedUser, article);
@@ -189,12 +225,26 @@ const updateArticle = async (req, res, next) => {
     }
 
     const { title, description, body } = req.body.article;
+    const targetStatus =
+      req.body.article && "status" in req.body.article
+        ? resolveStatus(req.body.article.status)
+        : article.status;
+
     if (title) {
       article.slug = slugify(title);
       article.title = title;
     }
     if (description) article.description = description;
     if (body) article.body = body;
+
+    if (targetStatus === "published") {
+      const finalDescription = description ?? article.description;
+      const finalBody = body ?? article.body;
+      if (!finalDescription) throw new FieldRequiredError("A description");
+      if (!finalBody) throw new FieldRequiredError("An article body");
+    }
+
+    article.status = targetStatus;
     await article.save();
 
     appendTagList(article.tagList, article);

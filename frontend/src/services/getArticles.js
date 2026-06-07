@@ -1,18 +1,50 @@
 import axios from "axios";
 import errorHandler from "../helpers/errorHandler";
 
-// prettier-ignore
-async function getArticles({ headers, limit = 3, location, page = 0, tagName, username }) {
-  try {
-    const url = {
-      favorites: `api/articles?favorited=${username}&&limit=${limit}&&offset=${page}`,
-      feed: `api/articles/feed?limit=${limit}&&offset=${page}`,
-      global: `api/articles?limit=${limit}&&offset=${page}`,
-      profile: `api/articles?author=${username}&&limit=${limit}&&offset=${page}`,
-      tag: `api/articles?tag=${tagName}&&limit=${limit}&&offset=${page}`,
-    };
+const toQuery = (params) =>
+  Object.entries(params)
+    .filter(([, value]) => value !== undefined && value !== null && value !== "")
+    .map(
+      ([key, value]) =>
+        `${encodeURIComponent(key)}=${encodeURIComponent(value)}`,
+    )
+    .join("&");
 
-    const { data } = await axios({ url: url[location], headers });
+export function buildArticlesUrl({
+  headers: _headers,
+  limit = 3,
+  location,
+  page = 0,
+  status,
+  tagName,
+  username,
+} = {}) {
+  const base = {
+    favorites: "api/articles",
+    feed: "api/articles/feed",
+    global: "api/articles",
+    profile: "api/articles",
+    tag: "api/articles",
+  }[location];
+
+  if (!base) return "";
+
+  const params = { limit, offset: page * limit };
+
+  if (location === "favorites") params.favorited = username;
+  if (location === "profile") params.author = username;
+  if (location === "tag") params.tag = tagName;
+  if (location !== "feed" && status) params.status = status;
+
+  return `${base}?${toQuery(params)}`;
+}
+
+// prettier-ignore
+async function getArticles({ headers, limit = 3, location, page = 0, status, tagName, username }) {
+  try {
+    const url = buildArticlesUrl({ limit, location, page, status, tagName, username });
+
+    const { data } = await axios({ url, headers });
 
     return data;
   } catch (error) {

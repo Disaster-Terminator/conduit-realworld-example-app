@@ -5,14 +5,20 @@ import getArticle from "../../services/getArticle";
 import setArticle from "../../services/setArticle";
 import FormFieldset from "../FormFieldset";
 
-const emptyForm = { title: "", description: "", body: "", tagList: "" };
+const emptyForm = {
+  title: "",
+  description: "",
+  body: "",
+  tagList: "",
+  status: "published",
+};
 
 function ArticleEditorForm() {
   const { state } = useLocation();
-  const [{ title, description, body, tagList }, setForm] = useState(
+  const [{ title, description, body, tagList, status }, setForm] = useState(
     state || emptyForm,
   );
-  const [errorMessage, setErrorMessage] = useState("");
+  const [statusMessage, setStatusMessage] = useState("");
   const { isAuth, headers, loggedUser } = useAuth();
 
   const navigate = useNavigate();
@@ -25,11 +31,26 @@ function ArticleEditorForm() {
     if (state || !slug) return;
 
     getArticle({ headers, slug })
-      .then(({ author: { username }, body, description, tagList, title }) => {
-        if (username !== loggedUser.username) redirect();
+      .then(
+        ({
+          author: { username },
+          body,
+          description,
+          status: articleStatus,
+          tagList,
+          title,
+        }) => {
+          if (username !== loggedUser.username) redirect();
 
-        setForm({ body, description, tagList, title });
-      })
+          setForm({
+            body,
+            description,
+            status: articleStatus || "published",
+            tagList,
+            title,
+          });
+        },
+      )
       .catch(console.error);
 
     return () => setForm(emptyForm);
@@ -48,18 +69,52 @@ function ArticleEditorForm() {
     setForm((form) => ({ ...form, tagList: value.split(/,| /) }));
   };
 
-  const formSubmit = (e) => {
-    e.preventDefault();
+  const save = (targetStatus) => {
+    setForm((form) => ({ ...form, status: targetStatus }));
 
-    setArticle({ headers, slug, body, description, tagList, title })
-      .then((slug) => navigate(`/article/${slug}`))
-      .catch(setErrorMessage);
+    return setArticle({
+      headers,
+      slug,
+      body,
+      description,
+      tagList,
+      title,
+      status: targetStatus,
+    }).then((returnedSlug) => {
+      if (targetStatus === "published") {
+        navigate(`/article/${returnedSlug}`);
+      } else if (!slug) {
+        navigate(`/editor/${returnedSlug}`, { replace: true });
+        setStatusMessage("Draft saved.");
+      } else {
+        setStatusMessage("Draft saved.");
+      }
+    });
   };
 
+  const handlePublish = (e) => {
+    e.preventDefault();
+    save("published").catch((message) => setStatusMessage(message));
+  };
+
+  const handleSaveDraft = (e) => {
+    e.preventDefault();
+    save("draft").catch((message) => setStatusMessage(message));
+  };
+
+  const isDraft = status === "draft";
+  const primaryText = !slug
+    ? "Publish Article"
+    : isDraft
+      ? "Publish Article"
+      : "Update Article";
+  const bodyRequired = !isDraft;
+  const descriptionRequired = !isDraft;
+
   return (
-    <form onSubmit={formSubmit}>
+    <form onSubmit={handlePublish}>
       <fieldset>
-        {errorMessage && <span className="error-messages">{errorMessage}</span>}
+        {statusMessage && <span className="error-messages">{statusMessage}</span>}
         <FormFieldset
           placeholder="Article Title"
           name="title"
@@ -72,7 +127,7 @@ function ArticleEditorForm() {
           normal
           placeholder="What's this article about?"
           name="description"
-          required
+          required={descriptionRequired}
           value={description}
           handler={inputHandler}
         ></FormFieldset>
@@ -83,7 +138,7 @@ function ArticleEditorForm() {
             rows="8"
             placeholder="Write your article (in markdown)"
             name="body"
-            required
+            required={bodyRequired}
             value={body}
             onChange={inputHandler}
           ></textarea>
@@ -99,9 +154,21 @@ function ArticleEditorForm() {
           <div className="tag-list"></div>
         </FormFieldset>
 
-        <button className="btn btn-lg pull-xs-right btn-primary" type="submit">
-          {slug ? "Update Article" : "Publish Article"}
-        </button>
+        <div style={{ float: "right" }}>
+          <button
+            type="button"
+            className="btn btn-lg btn-outline-primary"
+            onClick={handleSaveDraft}
+          >
+            Save Draft
+          </button>{" "}
+          <button
+            type="submit"
+            className="btn btn-lg btn-primary"
+          >
+            {primaryText}
+          </button>
+        </div>
       </fieldset>
     </form>
   );
