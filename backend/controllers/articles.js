@@ -9,21 +9,35 @@ const {
   appendFollowers,
   appendFavorites,
   appendTagList,
+  isSlugTaken,
   slugify,
 } = require("../helper/helpers");
 const { Article, Tag, User } = require("../models");
+
+const DRAFT = "draft";
+const PUBLISHED = "published";
 
 const includeOptions = [
   { model: Tag, as: "tagList", attributes: ["name"] },
   { model: User, as: "author", attributes: { exclude: ["email"] } },
 ];
 
+const canViewArticle = (article, loggedUser) =>
+  article.status !== DRAFT ||
+  Boolean(loggedUser && loggedUser.id === article.userId);
+
 //? All Articles - by Author/by Tag/Favorited by user
 const allArticles = async (req, res, next) => {
   try {
     const { loggedUser } = req;
 
-    const { author, tag, favorited, limit = 3, offset = 0 } = req.query;
+    const { author, favorited, limit = 3, offset = 0, status, tag } = req.query;
+
+    // Drafts are only visible when the requester is the author of the drafts.
+    const wantsDrafts =
+      status === DRAFT && Boolean(loggedUser) && author === loggedUser.username;
+    const filterStatus = wantsDrafts ? DRAFT : PUBLISHED;
+
     const searchOptions = {
       include: [
         {
@@ -39,6 +53,7 @@ const allArticles = async (req, res, next) => {
           ...(author && { where: { username: author } }),
         },
       ],
+      where: { status: filterStatus },
       limit: parseInt(limit),
       offset: offset * limit,
       order: [["createdAt", "DESC"]],
@@ -49,10 +64,17 @@ const allArticles = async (req, res, next) => {
       const user = await User.findOne({ where: { username: favorited } });
 
       articles.rows = await user.getFavorites(searchOptions);
-      articles.count = await user.countFavorites();
+      articles.count = await user.countFavorites({ where: searchOptions.where });
     } else {
       articles = await Article.findAndCountAll(searchOptions);
     }
+
+    // Drop drafts the requester is not allowed to see; this is defensive today
+    // (the status filter already keeps drafts out for everyone but the author),
+    // but it keeps the route safe if new entry points bypass the where clause.
+    articles.rows = articles.rows.filter((article) =>
+      canViewArticle(article, loggedUser),
+    );
 
     for (let article of articles.rows) {
       const articleTags = await article.getTagList();
@@ -76,23 +98,29 @@ const createArticle = async (req, res, next) => {
     const { loggedUser } = req;
     if (!loggedUser) throw new UnauthorizedError();
 
-    const { title, description, body, tagList } = req.body.article;
+    const { title, description, body, status, tagList } = req.body.article || {};
+    const nextStatus = status === DRAFT ? DRAFT : PUBLISHED;
+
     if (!title) throw new FieldRequiredError("A title");
-    if (!description) throw new FieldRequiredError("A description");
-    if (!body) throw new FieldRequiredError("An article body");
+    if (nextStatus === PUBLISHED) {
+      if (!description) throw new FieldRequiredError("A description");
+      if (!body) throw new FieldRequiredError("An article body");
+    }
 
     const slug = slugify(title);
-    const slugInDB = await Article.findOne({ where: { slug: slug } });
-    if (slugInDB) throw new AlreadyTakenError("Title");
+    if (await isSlugTaken({ Article, slug, status: nextStatus })) {
+      throw new AlreadyTakenError("Title");
+    }
 
     const article = await Article.create({
       slug: slug,
       title: title,
-      description: description,
-      body: body,
+      description: description || "",
+      body: body || "",
+      status: nextStatus,
     });
 
-    for (const tag of tagList) {
+    for (const tag of tagList || []) {
       const tagInDB = await Tag.findByPk(tag.trim());
 
       if (tagInDB) {
@@ -106,7 +134,7 @@ const createArticle = async (req, res, next) => {
 
     delete loggedUser.dataValues.token;
 
-    article.dataValues.tagList = tagList;
+    article.dataValues.tagList = tagList || [];
     article.setAuthor(loggedUser);
     article.dataValues.author = loggedUser;
     await appendFollowers(loggedUser, loggedUser);
@@ -132,10 +160,13 @@ const articlesFeed = async (req, res, next) => {
       limit: parseInt(limit),
       offset: offset * limit,
       order: [["createdAt", "DESC"]],
-      where: { userId: authors.map((author) => author.id) },
+      where: {
+        userId: authors.map((author) => author.id),
+        status: PUBLISHED,
+      },
     });
 
-    for (const article of articles.rows) {
+    for (let article of articles.rows) {
       const articleTags = await article.getTagList();
 
       appendTagList(articleTags, article);
@@ -159,7 +190,9 @@ const singleArticle = async (req, res, next) => {
       where: { slug: slug },
       include: includeOptions,
     });
-    if (!article) throw new NotFoundError("Article");
+    if (!article || !canViewArticle(article, loggedUser)) {
+      throw new NotFoundError("Article");
+    }
 
     appendTagList(article.tagList, article);
     await appendFollowers(loggedUser, article);
@@ -188,13 +221,42 @@ const updateArticle = async (req, res, next) => {
       throw new ForbiddenError("article");
     }
 
-    const { title, description, body } = req.body.article;
+    const { body, description, status, title } = req.body.article || {};
+
+    const nextStatus =
+      status === DRAFT || status === PUBLISHED ? status : article.status;
+    const nextTitle = title !== undefined ? title : article.title;
+
+    if (!nextTitle) throw new FieldRequiredError("A title");
+    if (nextStatus === PUBLISHED) {
+      if (!description && !article.description) {
+        throw new FieldRequiredError("A description");
+      }
+      if (!body && !article.body) {
+        throw new FieldRequiredError("An article body");
+      }
+    }
+
     if (title) {
-      article.slug = slugify(title);
+      const newSlug = slugify(title);
+      if (newSlug !== article.slug) {
+        if (
+          await isSlugTaken({
+            Article,
+            excludeId: article.id,
+            slug: newSlug,
+            status: nextStatus,
+          })
+        ) {
+          throw new AlreadyTakenError("Title");
+        }
+        article.slug = newSlug;
+      }
       article.title = title;
     }
-    if (description) article.description = description;
-    if (body) article.body = body;
+    if (description !== undefined) article.description = description;
+    if (body !== undefined) article.body = body;
+    if (article.status !== nextStatus) article.status = nextStatus;
     await article.save();
 
     appendTagList(article.tagList, article);
@@ -218,7 +280,9 @@ const deleteArticle = async (req, res, next) => {
       where: { slug: slug },
       include: includeOptions,
     });
-    if (!article) throw new NotFoundError("Article");
+    if (!article || !canViewArticle(article, loggedUser)) {
+      throw new NotFoundError("Article");
+    }
 
     if (loggedUser.id !== article.author.id) {
       throw new ForbiddenError("article");
@@ -234,9 +298,9 @@ const deleteArticle = async (req, res, next) => {
 
 module.exports = {
   allArticles,
+  articlesFeed,
   createArticle,
+  deleteArticle,
   singleArticle,
   updateArticle,
-  deleteArticle,
-  articlesFeed,
 };

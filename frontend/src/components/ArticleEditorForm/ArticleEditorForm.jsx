@@ -5,7 +5,10 @@ import getArticle from "../../services/getArticle";
 import setArticle from "../../services/setArticle";
 import FormFieldset from "../FormFieldset";
 
-const emptyForm = { title: "", description: "", body: "", tagList: "" };
+const DRAFT = "draft";
+const PUBLISHED = "published";
+
+const emptyForm = { body: "", description: "", tagList: "", title: "" };
 
 function ArticleEditorForm() {
   const { state } = useLocation();
@@ -25,10 +28,10 @@ function ArticleEditorForm() {
     if (state || !slug) return;
 
     getArticle({ headers, slug })
-      .then(({ author: { username }, body, description, tagList, title }) => {
+      .then(({ author: { username }, body, description, status, tagList, title }) => {
         if (username !== loggedUser.username) redirect();
 
-        setForm({ body, description, tagList, title });
+        setForm({ body, description, status, tagList, title });
       })
       .catch(console.error);
 
@@ -48,59 +51,85 @@ function ArticleEditorForm() {
     setForm((form) => ({ ...form, tagList: value.split(/,| /) }));
   };
 
-  const formSubmit = (e) => {
-    e.preventDefault();
+  const submitWith = (status) => (event) => {
+    event?.preventDefault?.();
 
-    setArticle({ headers, slug, body, description, tagList, title })
-      .then((slug) => navigate(`/article/${slug}`))
+    if (!title) {
+      setErrorMessage("A title is required");
+      return;
+    }
+    if (status === PUBLISHED && (!description || !body)) {
+      setErrorMessage("Description and body are required to publish");
+      return;
+    }
+
+    setErrorMessage("");
+
+    setArticle({
+      body,
+      description,
+      headers,
+      slug,
+      status,
+      tagList,
+      title,
+    })
+      .then((newSlug) => navigate(`/article/${newSlug}`))
       .catch(setErrorMessage);
   };
 
   return (
-    <form onSubmit={formSubmit}>
+    <form onSubmit={submitWith(PUBLISHED)} noValidate>
       <fieldset>
         {errorMessage && <span className="error-messages">{errorMessage}</span>}
         <FormFieldset
-          placeholder="Article Title"
+          handler={inputHandler}
           name="title"
+          placeholder="Article Title"
           required
           value={title}
-          handler={inputHandler}
         ></FormFieldset>
 
         <FormFieldset
+          handler={inputHandler}
+          name="description"
           normal
           placeholder="What's this article about?"
-          name="description"
           required
           value={description}
-          handler={inputHandler}
         ></FormFieldset>
 
         <fieldset className="form-group">
           <textarea
             className="form-control"
-            rows="8"
-            placeholder="Write your article (in markdown)"
             name="body"
-            required
-            value={body}
             onChange={inputHandler}
+            placeholder="Write your article (in markdown)"
+            required
+            rows="8"
+            value={body}
           ></textarea>
         </fieldset>
 
         <FormFieldset
+          handler={tagsInputHandler}
+          name="tags"
           normal
           placeholder="Enter tags"
-          name="tags"
           value={tagList}
-          handler={tagsInputHandler}
         >
           <div className="tag-list"></div>
         </FormFieldset>
 
+        <button
+          className="btn btn-lg pull-xs-right btn-outline-primary"
+          onClick={submitWith(DRAFT)}
+          type="button"
+        >
+          {slug ? "Save as Draft" : "Save Draft"}
+        </button>{" "}
         <button className="btn btn-lg pull-xs-right btn-primary" type="submit">
-          {slug ? "Update Article" : "Publish Article"}
+          {slug ? "Update & Publish" : "Publish Article"}
         </button>
       </fieldset>
     </form>

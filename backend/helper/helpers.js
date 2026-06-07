@@ -1,5 +1,14 @@
+const { Op } = require("sequelize");
+
 const slugify = (string) => {
   return string.trim().toLowerCase().replace(/\W|_/g, "-");
+};
+
+const isSlugTaken = async ({ Article, excludeId, slug, status }) => {
+  const where = { slug, status };
+  if (excludeId) where.id = { [Op.ne]: excludeId };
+  const match = await Article.findOne({ where });
+  return Boolean(match);
 };
 
 const appendTagList = (articleTags, article) => {
@@ -39,4 +48,10 @@ const appendFollowers = async (loggedUser, toAppend) => {
   }
 };
 
-module.exports = { slugify, appendTagList, appendFavorites, appendFollowers };
+module.exports = {
+  appendFavorites,
+  appendFollowers,
+  appendTagList,
+  isSlugTaken,
+  slugify,
+};
