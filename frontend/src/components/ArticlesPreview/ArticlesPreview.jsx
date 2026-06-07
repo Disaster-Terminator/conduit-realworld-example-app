@@ -32,7 +32,12 @@ function ArticlesPreview({ articles, loading, updateArticles }) {
             state={article}
             className="preview-link"
           >
-            <h1>{article.title}</h1>
+            <h1>
+              {article.status === "draft" && (
+                <span className="badge badge-secondary mr-1">DRAFT</span>
+              )}
+              {article.title}
+            </h1>
             <p>{article.description}</p>
             <span>Read more...</span>
             <ArticleTags tagList={article.tagList} />

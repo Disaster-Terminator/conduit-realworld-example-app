@@ -5,11 +5,17 @@ import getArticle from "../../services/getArticle";
 import setArticle from "../../services/setArticle";
 import FormFieldset from "../FormFieldset";
 
-const emptyForm = { title: "", description: "", body: "", tagList: "" };
+const emptyForm = {
+  title: "",
+  description: "",
+  body: "",
+  tagList: "",
+  status: "published",
+};
 
 function ArticleEditorForm() {
   const { state } = useLocation();
-  const [{ title, description, body, tagList }, setForm] = useState(
+  const [{ title, description, body, tagList, status }, setForm] = useState(
     state || emptyForm,
   );
   const [errorMessage, setErrorMessage] = useState("");
@@ -25,10 +31,10 @@ function ArticleEditorForm() {
     if (state || !slug) return;
 
     getArticle({ headers, slug })
-      .then(({ author: { username }, body, description, tagList, title }) => {
+      .then(({ author: { username }, body, description, status, tagList, title }) => {
         if (username !== loggedUser.username) redirect();
 
-        setForm({ body, description, tagList, title });
+        setForm({ body, description, status, tagList, title });
       })
       .catch(console.error);
 
@@ -51,15 +57,26 @@ function ArticleEditorForm() {
   const formSubmit = (e) => {
     e.preventDefault();
 
-    setArticle({ headers, slug, body, description, tagList, title })
-      .then((slug) => navigate(`/article/${slug}`))
+    const action = e.nativeEvent.submitter?.value || "publish";
+    const nextStatus = action === "draft" ? "draft" : "published";
+
+    setArticle({ headers, slug, body, description, status: nextStatus, tagList, title })
+      .then((newSlug) => navigate(`/article/${newSlug}`))
       .catch(setErrorMessage);
   };
+
+  const isEditingDraft = Boolean(slug) && status === "draft";
 
   return (
     <form onSubmit={formSubmit}>
       <fieldset>
         {errorMessage && <span className="error-messages">{errorMessage}</span>}
+        {isEditingDraft && (
+          <p className="text-muted">
+            <span className="badge badge-secondary mr-1">DRAFT</span>
+            This is a draft. Only you can see this article until you publish it.
+          </p>
+        )}
         <FormFieldset
           placeholder="Article Title"
           name="title"
@@ -99,9 +116,24 @@ function ArticleEditorForm() {
           <div className="tag-list"></div>
         </FormFieldset>
 
-        <button className="btn btn-lg pull-xs-right btn-primary" type="submit">
-          {slug ? "Update Article" : "Publish Article"}
-        </button>
+        <div className="d-flex justify-content-end" style={{ gap: "0.5rem" }}>
+          <button
+            className="btn btn-lg btn-outline-primary"
+            type="submit"
+            name="action"
+            value="draft"
+          >
+            Save as Draft
+          </button>
+          <button
+            className="btn btn-lg pull-xs-right btn-primary"
+            type="submit"
+            name="action"
+            value="publish"
+          >
+            {slug ? "Update Article" : "Publish Article"}
+          </button>
+        </div>
       </fieldset>
     </form>
   );

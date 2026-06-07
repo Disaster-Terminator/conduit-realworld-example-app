@@ -5,6 +5,7 @@ import errorHandler from "../helpers/errorHandler";
 async function getArticles({ headers, limit = 3, location, page = 0, tagName, username }) {
   try {
     const url = {
+      drafts: `api/articles?author=${username}&&status=draft&&limit=${limit}&&offset=${page}`,
       favorites: `api/articles?favorited=${username}&&limit=${limit}&&offset=${page}`,
       feed: `api/articles/feed?limit=${limit}&&offset=${page}`,
       global: `api/articles?limit=${limit}&&offset=${page}`,

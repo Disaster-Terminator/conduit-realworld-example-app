@@ -1,10 +1,14 @@
-import { Outlet, useLocation } from "react-router-dom";
+import { Outlet, useLocation, useParams } from "react-router-dom";
 import AuthorInfo from "../../components/AuthorInfo";
 import ContainerRow from "../../components/ContainerRow";
 import NavItem from "../../components/NavItem";
+import { useAuth } from "../../context/AuthContext";
 
 function Profile() {
   const { state } = useLocation();
+  const { username } = useParams();
+  const { loggedUser } = useAuth();
+  const isOwner = loggedUser?.username === username;
 
   return (
     <div className="profile-page">
@@ -19,7 +23,12 @@ function Profile() {
           <div className="articles-toggle">
             <ul className="nav nav-pills outline-active">
               <NavItem text="My Articles" url="" state={state} />
-              <NavItem text="Favorited Articles" url="favorites" state={state} />
+              {isOwner && <NavItem text="Drafts" url="drafts" state={state} />}
+              <NavItem
+                text="Favorited Articles"
+                url="favorites"
+                state={state}
+              />
             </ul>
           </div>
           <Outlet />
