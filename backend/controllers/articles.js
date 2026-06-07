@@ -195,6 +195,12 @@ const updateArticle = async (req, res, next) => {
     }
     if (description) article.description = description;
     if (body) article.body = body;
+    // The Article model uses Sequelize's default `timestamps: true`, so
+    // `save()` refreshes `updatedAt` automatically whenever a tracked
+    // field (slug, title, description, body) actually changes. When the
+    // request body is empty, no field is dirty and `updatedAt` is left
+    // untouched on purpose. Do not disable timestamps on this model
+    // without also wiring up an explicit touch/update path.
     await article.save();
 
     appendTagList(article.tagList, article);
