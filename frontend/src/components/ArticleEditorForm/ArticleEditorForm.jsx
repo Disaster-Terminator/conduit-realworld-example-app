@@ -13,6 +13,7 @@ function ArticleEditorForm() {
     state || emptyForm,
   );
   const [errorMessage, setErrorMessage] = useState("");
+  const [articleStatus, setArticleStatus] = useState("");
   const { isAuth, headers, loggedUser } = useAuth();
 
   const navigate = useNavigate();
@@ -25,10 +26,11 @@ function ArticleEditorForm() {
     if (state || !slug) return;
 
     getArticle({ headers, slug })
-      .then(({ author: { username }, body, description, tagList, title }) => {
+      .then(({ author: { username }, body, description, status, tagList, title }) => {
         if (username !== loggedUser.username) redirect();
 
         setForm({ body, description, tagList, title });
+        setArticleStatus(status || "");
       })
       .catch(console.error);
 
@@ -48,16 +50,19 @@ function ArticleEditorForm() {
     setForm((form) => ({ ...form, tagList: value.split(/,| /) }));
   };
 
-  const formSubmit = (e) => {
+  const submitArticle = (e, status) => {
     e.preventDefault();
 
-    setArticle({ headers, slug, body, description, tagList, title })
+    setArticle({ headers, slug, body, description, status, tagList, title })
       .then((slug) => navigate(`/article/${slug}`))
       .catch(setErrorMessage);
   };
 
+  const isEditingDraft = Boolean(slug && articleStatus === "draft");
+  const isEditingPublished = Boolean(slug && articleStatus === "published");
+
   return (
-    <form onSubmit={formSubmit}>
+    <form>
       <fieldset>
         {errorMessage && <span className="error-messages">{errorMessage}</span>}
         <FormFieldset
@@ -99,9 +104,33 @@ function ArticleEditorForm() {
           <div className="tag-list"></div>
         </FormFieldset>
 
-        <button className="btn btn-lg pull-xs-right btn-primary" type="submit">
-          {slug ? "Update Article" : "Publish Article"}
-        </button>
+        {isEditingPublished ? (
+          <button
+            className="btn btn-lg pull-xs-right btn-primary"
+            type="submit"
+            onClick={(e) => submitArticle(e, "published")}
+          >
+            Update Article
+          </button>
+        ) : (
+          <>
+            <button
+              className="btn btn-lg pull-xs-right btn-primary"
+              type="submit"
+              onClick={(e) => submitArticle(e, "published")}
+            >
+              {slug ? "Publish" : "Publish Article"}
+            </button>
+            <button
+              className="btn btn-lg pull-xs-right btn-outline-primary"
+              type="submit"
+              style={{ marginRight: "0.5rem" }}
+              onClick={(e) => submitArticle(e, "draft")}
+            >
+              Save Draft
+            </button>
+          </>
+        )}
       </fieldset>
     </form>
   );
