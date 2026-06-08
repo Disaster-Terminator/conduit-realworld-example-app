@@ -1,9 +1,10 @@
 import { Link } from "react-router-dom";
-import dateFormatter from "../../helpers/dateFormatter";
+import dateFormatter, { relativeTime } from "../../helpers/dateFormatter";
 import Avatar from "../Avatar";
 
-function ArticleMeta({ author, children, createdAt }) {
+function ArticleMeta({ author, children, createdAt, updatedAt }) {
   const { bio, followersCount, following, image, username } = author || {};
+  const wasEdited = updatedAt && createdAt && updatedAt !== createdAt;
 
   return (
     <div className="article-meta">
@@ -22,6 +23,11 @@ function ArticleMeta({ author, children, createdAt }) {
           {username}
         </Link>
         <span className="date">{dateFormatter(createdAt)}</span>
+        {wasEdited && (
+          <span className="date edited-date">
+            最后编辑于 {relativeTime(updatedAt)}
+          </span>
+        )}
       </div>
       {children}
     </div>
