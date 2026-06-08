@@ -48,16 +48,24 @@ function ArticleEditorForm() {
     setForm((form) => ({ ...form, tagList: value.split(/,| /) }));
   };
 
-  const formSubmit = (e) => {
+  const formSubmitDraft = (e) => {
     e.preventDefault();
 
-    setArticle({ headers, slug, body, description, tagList, title })
+    setArticle({ headers, slug, body, description, tagList, title, status: "draft" })
+      .then((slug) => navigate(`/article/${slug}`))
+      .catch(setErrorMessage);
+  };
+
+  const formSubmitPublish = (e) => {
+    e.preventDefault();
+
+    setArticle({ headers, slug, body, description, tagList, title, status: "published" })
       .then((slug) => navigate(`/article/${slug}`))
       .catch(setErrorMessage);
   };
 
   return (
-    <form onSubmit={formSubmit}>
+    <form>
       <fieldset>
         {errorMessage && <span className="error-messages">{errorMessage}</span>}
         <FormFieldset
@@ -99,7 +107,16 @@ function ArticleEditorForm() {
           <div className="tag-list"></div>
         </FormFieldset>
 
-        <button className="btn btn-lg pull-xs-right btn-primary" type="submit">
+        <button
+          className="btn btn-lg pull-xs-right btn-outline-primary"
+          type="button"
+          onClick={formSubmitDraft}
+          style={{ marginRight: "0.5rem" }}
+        >
+          保存草稿
+        </button>
+
+        <button className="btn btn-lg pull-xs-right btn-primary" type="button" onClick={formSubmitPublish}>
           {slug ? "Update Article" : "Publish Article"}
         </button>
       </fieldset>
