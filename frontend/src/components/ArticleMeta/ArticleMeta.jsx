@@ -1,9 +1,15 @@
 import { Link } from "react-router-dom";
 import dateFormatter from "../../helpers/dateFormatter";
+import timeAgo from "../../helpers/timeAgo";
 import Avatar from "../Avatar";
 
-function ArticleMeta({ author, children, createdAt }) {
+function ArticleMeta({ author, children, createdAt, updatedAt }) {
   const { bio, followersCount, following, image, username } = author || {};
+
+  const hasBeenEdited =
+    updatedAt &&
+    createdAt &&
+    new Date(updatedAt).getTime() - new Date(createdAt).getTime() > 60000;
 
   return (
     <div className="article-meta">
@@ -22,6 +28,9 @@ function ArticleMeta({ author, children, createdAt }) {
           {username}
         </Link>
         <span className="date">{dateFormatter(createdAt)}</span>
+        {hasBeenEdited && (
+          <span className="edited-date"> (最后编辑于 {timeAgo(updatedAt)})</span>
+        )}
       </div>
       {children}
     </div>

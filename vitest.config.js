@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import react from "@vitejs/plugin-react-swc";
 import { defineConfig } from "vite";
 
@@ -6,7 +7,9 @@ export default defineConfig({
   test: {
     globals: true,
     environment: "jsdom",
-    setupFiles: "frontend/src/setupTests.js",
+    setupFiles: fileURLToPath(
+      new URL("frontend/src/setupTests.js", import.meta.url),
+    ),
     css: true,
   },
 });
