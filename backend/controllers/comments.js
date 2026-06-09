@@ -4,7 +4,7 @@ const {
   FieldRequiredError,
   ForbiddenError,
 } = require("../helper/customErrors");
-const { appendFollowers } = require("../helper/helpers");
+const { appendFollowers, appendLikes } = require("../helper/helpers");
 const { Article, Comment, User } = require("../models");
 
 //? All Comments for Article
@@ -24,6 +24,7 @@ const allComments = async (req, res, next) => {
 
     for (const comment of comments) {
       await appendFollowers(loggedUser, comment);
+      await appendLikes(loggedUser, comment);
     }
 
     res.json({ comments });
@@ -54,6 +55,7 @@ const createComment = async (req, res, next) => {
     delete loggedUser.dataValues.token;
     comment.dataValues.author = loggedUser;
     await appendFollowers(loggedUser, loggedUser);
+    await appendLikes(loggedUser, comment);
 
     res.status(201).json({ comment });
   } catch (error) {

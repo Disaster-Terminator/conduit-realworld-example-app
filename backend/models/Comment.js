@@ -13,6 +13,14 @@ module.exports = (sequelize, DataTypes) => {
       // Comments
       this.belongsTo(Article, { foreignKey: "articleId" });
       this.belongsTo(User, { as: "author", foreignKey: "userId" });
+
+      // Comment Likes
+      this.belongsToMany(User, {
+        through: "CommentLikes",
+        as: "likedBy",
+        foreignKey: "commentId",
+        timestamps: false,
+      });
     }
 
     toJSON() {

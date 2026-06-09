@@ -14,4 +14,9 @@ router.post("/:slug/comments", verifyToken, createComment);
 //* Delete Comment for Article
 router.delete("/:slug/comments/:commentId", verifyToken, deleteComment);
 
+const likesRoutes = require("./likes");
+
+//> Likes routes
+router.use("/", likesRoutes);
+
 module.exports = router;

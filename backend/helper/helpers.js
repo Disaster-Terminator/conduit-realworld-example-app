@@ -39,4 +39,12 @@ const appendFollowers = async (loggedUser, toAppend) => {
   }
 };
 
-module.exports = { slugify, appendTagList, appendFavorites, appendFollowers };
+const appendLikes = async (loggedUser, comment) => {
+  const liked = await comment.hasUser(loggedUser ? loggedUser : null);
+  comment.dataValues.liked = loggedUser ? liked : false;
+
+  const likeCount = await comment.countUsers();
+  comment.dataValues.likeCount = likeCount;
+};
+
+module.exports = { slugify, appendTagList, appendFavorites, appendFollowers, appendLikes };
