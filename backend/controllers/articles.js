@@ -23,7 +23,7 @@ const allArticles = async (req, res, next) => {
   try {
     const { loggedUser } = req;
 
-    const { author, tag, favorited, limit = 3, offset = 0 } = req.query;
+    const { author, tag, favorited, status, limit = 3, offset = 0 } = req.query;
     const searchOptions = {
       include: [
         {
@@ -43,6 +43,13 @@ const allArticles = async (req, res, next) => {
       offset: offset * limit,
       order: [["createdAt", "DESC"]],
     };
+
+    // Default: only show published articles, unless explicitly querying own drafts
+    if (status === "draft" && author && loggedUser && loggedUser.username === author) {
+      searchOptions.where = { ...searchOptions.where, status: "draft" };
+    } else {
+      searchOptions.where = { ...searchOptions.where, status: "published" };
+    }
 
     let articles = { rows: [], count: 0 };
     if (favorited) {
@@ -76,20 +83,33 @@ const createArticle = async (req, res, next) => {
     const { loggedUser } = req;
     if (!loggedUser) throw new UnauthorizedError();
 
-    const { title, description, body, tagList } = req.body.article;
-    if (!title) throw new FieldRequiredError("A title");
-    if (!description) throw new FieldRequiredError("A description");
-    if (!body) throw new FieldRequiredError("An article body");
+    const { title, description, body, tagList, status = "draft" } = req.body.article;
 
-    const slug = slugify(title);
-    const slugInDB = await Article.findOne({ where: { slug: slug } });
-    if (slugInDB) throw new AlreadyTakenError("Title");
+    // Draft mode: skip field validation, generate slug from title or fallback
+    if (status === "published") {
+      if (!title) throw new FieldRequiredError("A title");
+      if (!description) throw new FieldRequiredError("A description");
+      if (!body) throw new FieldRequiredError("An article body");
+    }
+
+    let slug;
+    if (title && title.trim()) {
+      slug = slugify(title);
+      // Only check slug uniqueness for published articles
+      if (status === "published") {
+        const slugInDB = await Article.findOne({ where: { slug } });
+        if (slugInDB) throw new AlreadyTakenError("Title");
+      }
+    } else {
+      slug = `draft-${Date.now()}`;
+    }
 
     const article = await Article.create({
-      slug: slug,
-      title: title,
-      description: description,
-      body: body,
+      slug,
+      title: title || "",
+      description: description || "",
+      body: body || "",
+      status,
     });
 
     for (const tag of tagList) {
@@ -132,7 +152,7 @@ const articlesFeed = async (req, res, next) => {
       limit: parseInt(limit),
       offset: offset * limit,
       order: [["createdAt", "DESC"]],
-      where: { userId: authors.map((author) => author.id) },
+      where: { userId: authors.map((author) => author.id), status: "published" },
     });
 
     for (const article of articles.rows) {
@@ -161,6 +181,13 @@ const singleArticle = async (req, res, next) => {
     });
     if (!article) throw new NotFoundError("Article");
 
+    // Draft articles are only accessible by the author
+    if (article.status === "draft") {
+      if (!loggedUser || loggedUser.id !== article.author.id) {
+        throw new NotFoundError("Article");
+      }
+    }
+
     appendTagList(article.tagList, article);
     await appendFollowers(loggedUser, article);
     await appendFavorites(loggedUser, article);
@@ -188,13 +215,25 @@ const updateArticle = async (req, res, next) => {
       throw new ForbiddenError("article");
     }
 
-    const { title, description, body } = req.body.article;
+    const { title, description, body, status } = req.body.article;
+
+    // If publishing a draft, validate required fields
+    if (status === "published" && article.status === "draft") {
+      const newTitle = title || article.title;
+      const newDescription = description || article.description;
+      const newBody = body || article.body;
+      if (!newTitle) throw new FieldRequiredError("A title");
+      if (!newDescription) throw new FieldRequiredError("A description");
+      if (!newBody) throw new FieldRequiredError("An article body");
+    }
+
     if (title) {
       article.slug = slugify(title);
       article.title = title;
     }
     if (description) article.description = description;
     if (body) article.body = body;
+    if (status) article.status = status;
     await article.save();
 
     appendTagList(article.tagList, article);
