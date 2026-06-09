@@ -12,6 +12,7 @@ function ArticleEditorForm() {
   const [{ title, description, body, tagList }, setForm] = useState(
     state || emptyForm,
   );
+  const [articleStatus, setArticleStatus] = useState(state?.status || "draft");
   const [errorMessage, setErrorMessage] = useState("");
   const { isAuth, headers, loggedUser } = useAuth();
 
@@ -25,9 +26,10 @@ function ArticleEditorForm() {
     if (state || !slug) return;
 
     getArticle({ headers, slug })
-      .then(({ author: { username }, body, description, tagList, title }) => {
+      .then(({ author: { username }, body, description, status, tagList, title }) => {
         if (username !== loggedUser.username) redirect();
 
+        setArticleStatus(status || "draft");
         setForm({ body, description, tagList, title });
       })
       .catch(console.error);
@@ -48,16 +50,26 @@ function ArticleEditorForm() {
     setForm((form) => ({ ...form, tagList: value.split(/,| /) }));
   };
 
-  const formSubmit = (e) => {
+  const formSubmit = (e, status) => {
     e.preventDefault();
 
-    setArticle({ headers, slug, body, description, tagList, title })
-      .then((slug) => navigate(`/article/${slug}`))
+    setArticle({ headers, slug, body, description, tagList, title, status })
+      .then((newSlug) => {
+        if (status === "draft") {
+          navigate(`/editor/${newSlug}`, { replace: true });
+        } else {
+          navigate(`/article/${newSlug}`);
+        }
+      })
       .catch(setErrorMessage);
   };
 
+  const isDraft = slug && articleStatus === "draft";
+  const isPublished = slug && articleStatus === "published";
+  const isNew = !slug;
+
   return (
-    <form onSubmit={formSubmit}>
+    <form onSubmit={(e) => formSubmit(e, "published")}>
       <fieldset>
         {errorMessage && <span className="error-messages">{errorMessage}</span>}
         <FormFieldset
@@ -99,9 +111,45 @@ function ArticleEditorForm() {
           <div className="tag-list"></div>
         </FormFieldset>
 
-        <button className="btn btn-lg pull-xs-right btn-primary" type="submit">
-          {slug ? "Update Article" : "Publish Article"}
-        </button>
+        {isPublished ? (
+          <button className="btn btn-lg pull-xs-right btn-primary" type="submit">
+            Update Article
+          </button>
+        ) : isDraft ? (
+          <>
+            <button
+              className="btn btn-lg pull-xs-right btn-primary"
+              type="submit"
+            >
+              Publish
+            </button>
+            <button
+              className="btn btn-lg pull-xs-right btn-outline-primary"
+              type="button"
+              style={{ marginRight: "0.5rem" }}
+              onClick={(e) => formSubmit(e, "draft")}
+            >
+              Save Draft
+            </button>
+          </>
+        ) : (
+          <>
+            <button
+              className="btn btn-lg pull-xs-right btn-primary"
+              type="submit"
+            >
+              Publish Article
+            </button>
+            <button
+              className="btn btn-lg pull-xs-right btn-outline-primary"
+              type="button"
+              style={{ marginRight: "0.5rem" }}
+              onClick={(e) => formSubmit(e, "draft")}
+            >
+              Save as Draft
+            </button>
+          </>
+        )}
       </fieldset>
     </form>
   );

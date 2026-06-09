@@ -3,17 +3,17 @@ import ArticlesPagination from "../../components/ArticlesPagination";
 import ArticlesPreview from "../../components/ArticlesPreview";
 import useArticleList from "../../hooks/useArticles";
 
-function ProfileArticles() {
+function ProfileDrafts() {
   const { username } = useParams();
 
   const { articles, articlesCount, loading, setArticlesData } = useArticleList({
-    location: "profile",
+    location: "drafts",
     username,
   });
 
   return loading ? (
     <div className="article-preview">
-      <em>Loading {username} articles...</em>
+      <em>Loading {username} drafts...</em>
     </div>
   ) : articles.length > 0 ? (
     <>
@@ -25,14 +25,14 @@ function ProfileArticles() {
 
       <ArticlesPagination
         articlesCount={articlesCount}
-        location="profile"
+        location="drafts"
         updateArticles={setArticlesData}
         username={username}
       />
     </>
   ) : (
-    <div className="article-preview">{username} doesn't have published articles.</div>
+    <div className="article-preview">No draft articles.</div>
   );
 }
 
-export default ProfileArticles;
+export default ProfileDrafts;

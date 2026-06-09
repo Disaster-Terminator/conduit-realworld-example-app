@@ -23,7 +23,7 @@ const allArticles = async (req, res, next) => {
   try {
     const { loggedUser } = req;
 
-    const { author, tag, favorited, limit = 3, offset = 0 } = req.query;
+    const { author, tag, favorited, status, limit = 3, offset = 0 } = req.query;
     const searchOptions = {
       include: [
         {
@@ -43,6 +43,18 @@ const allArticles = async (req, res, next) => {
       offset: offset * limit,
       order: [["createdAt", "DESC"]],
     };
+
+    // Status filtering: default to published; support ?status=draft for own articles
+    if (status === "draft") {
+      // Only the author themselves can query their drafts
+      if (!author || !loggedUser || loggedUser.username !== author) {
+        // If not requesting own drafts, return empty
+        return res.json({ articles: [], articlesCount: 0 });
+      }
+      searchOptions.where = { ...searchOptions.where, status: "draft" };
+    } else {
+      searchOptions.where = { ...searchOptions.where, status: "published" };
+    }
 
     let articles = { rows: [], count: 0 };
     if (favorited) {
@@ -76,7 +88,7 @@ const createArticle = async (req, res, next) => {
     const { loggedUser } = req;
     if (!loggedUser) throw new UnauthorizedError();
 
-    const { title, description, body, tagList } = req.body.article;
+    const { title, description, body, tagList, status } = req.body.article;
     if (!title) throw new FieldRequiredError("A title");
     if (!description) throw new FieldRequiredError("A description");
     if (!body) throw new FieldRequiredError("An article body");
@@ -90,6 +102,7 @@ const createArticle = async (req, res, next) => {
       title: title,
       description: description,
       body: body,
+      status: status || "draft",
     });
 
     for (const tag of tagList) {
@@ -132,7 +145,7 @@ const articlesFeed = async (req, res, next) => {
       limit: parseInt(limit),
       offset: offset * limit,
       order: [["createdAt", "DESC"]],
-      where: { userId: authors.map((author) => author.id) },
+      where: { userId: authors.map((author) => author.id), status: "published" },
     });
 
     for (const article of articles.rows) {
@@ -161,6 +174,14 @@ const singleArticle = async (req, res, next) => {
     });
     if (!article) throw new NotFoundError("Article");
 
+    // Only author can view draft articles
+    if (article.status === "draft") {
+      const authorUser = await article.getAuthor();
+      if (!loggedUser || loggedUser.id !== authorUser.id) {
+        throw new NotFoundError("Article");
+      }
+    }
+
     appendTagList(article.tagList, article);
     await appendFollowers(loggedUser, article);
     await appendFavorites(loggedUser, article);
@@ -188,13 +209,14 @@ const updateArticle = async (req, res, next) => {
       throw new ForbiddenError("article");
     }
 
-    const { title, description, body } = req.body.article;
+    const { title, description, body, status } = req.body.article;
     if (title) {
       article.slug = slugify(title);
       article.title = title;
     }
     if (description) article.description = description;
     if (body) article.body = body;
+    if (status) article.status = status;
     await article.save();
 
     appendTagList(article.tagList, article);
