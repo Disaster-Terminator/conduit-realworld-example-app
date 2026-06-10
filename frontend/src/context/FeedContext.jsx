@@ -18,10 +18,8 @@ function FeedProvider({ children }) {
     setTab((tab) => ({ ...tab, tabName: isAuth ? "feed" : "global" }));
   }, [isAuth]);
 
-  const changeTab = async (e, tabName) => {
-    const tagName = e.target.innerText.trim();
-
-    setTab({ tabName, tagName });
+  const changeTab = async (e, tabName, tagName) => {
+    setTab({ tabName, tagName: tagName || "" });
   };
 
   return (

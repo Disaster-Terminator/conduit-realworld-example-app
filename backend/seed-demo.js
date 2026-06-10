@@ -49,6 +49,29 @@ const { sequelize, User, Article, Tag } = require("./models");
     console.log(`Demo tag ready: ${name}`);
   }
 
+  // 确定性 tag-article 关联: 某些 tag 被更多文章使用，便于验证排序
+  const allTags = await Tag.findAll();
+  const tagMap = {};
+  for (const tag of allTags) tagMap[tag.name] = tag;
+
+  const assignment = [
+    { tag: "react", indices: [...Array(30).keys()] },
+    { tag: "nodejs", indices: [...Array(20).keys()] },
+    { tag: "express", indices: [...Array(10).keys()] },
+    { tag: "postgresql", indices: [0, 1, 2, 3, 4] },
+    { tag: "sequelize", indices: [0, 1, 2] },
+  ];
+
+  for (const { tag, indices } of assignment) {
+    const tagObj = tagMap[tag];
+    if (!tagObj) continue;
+    const targetArticles = indices.map((i) => articles[i]).filter(Boolean);
+    for (const article of targetArticles) {
+      await article.addTagList(tagObj);
+    }
+  }
+  console.log(`Demo tag-article associations ready: react=30, nodejs=20, express=10, postgresql=5, sequelize=3`);
+
   console.log("\nSeed complete! Demo accounts:");
   console.log("  email: example1@mail.com  pwd: examplePwd1");
   console.log("  email: example2@mail.com  pwd: examplePwd2");

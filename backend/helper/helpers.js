@@ -39,4 +39,15 @@ const appendFollowers = async (loggedUser, toAppend) => {
   }
 };
 
-module.exports = { slugify, appendTagList, appendFavorites, appendFollowers };
+const formatTagCounts = (results) => {
+  if (!Array.isArray(results)) return [];
+  return [...results]
+    .sort((a, b) => (b.count || 0) - (a.count || 0))
+    .slice(0, 10)
+    .map((t) => ({
+      name: t.name,
+      count: typeof t.count === "number" ? t.count : parseInt(t.count, 10),
+    }));
+};
+
+module.exports = { slugify, appendTagList, appendFavorites, appendFollowers, formatTagCounts };

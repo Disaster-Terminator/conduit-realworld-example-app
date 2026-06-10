@@ -12,7 +12,14 @@ const checks = [
     url: "http://127.0.0.1:3001/api/tags",
     validate: async (response) => {
       const json = await response.json();
-      return response.ok && Array.isArray(json.tags);
+      if (!response.ok || !Array.isArray(json.tags)) return false;
+      if (json.tags.length > 10) return false; // verify LIMIT 10
+      return json.tags.every((t, i) => {
+        if (typeof t.name !== "string" || typeof t.count !== "number") return false;
+        // verify descending order by count
+        if (i < json.tags.length - 1 && t.count < json.tags[i + 1].count) return false;
+        return true;
+      });
     },
   },
 ];

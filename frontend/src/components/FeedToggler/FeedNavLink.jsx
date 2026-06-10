@@ -4,7 +4,7 @@ function FeedNavLink({ icon, name, text }) {
   const { tabName, changeTab } = useFeedContext();
 
   const handleClick = (e) => {
-    changeTab(e, name);
+    changeTab(e, name, name === "tag" ? text : undefined);
   };
 
   return (

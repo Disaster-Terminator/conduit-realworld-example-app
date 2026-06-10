@@ -1,16 +1,30 @@
 const express = require("express");
 const router = express.Router();
-const { Tag } = require("../models");
-const { appendTagList } = require("../helper/helpers");
+const { Tag, Article, sequelize } = require("../models");
+const { formatTagCounts } = require("../helper/helpers");
 
-// All Tags
+// All Tags — Popular Tags (top 10 by article count)
 router.get("/", async (req, res, next) => {
   try {
-    const tagList = await Tag.findAll();
+    const tags = await Tag.findAll({
+      attributes: [
+        "name",
+        [sequelize.fn("COUNT", sequelize.col("Articles.id")), "count"],
+      ],
+      include: [
+        {
+          model: Article,
+          attributes: [],
+          through: { attributes: [] },
+        },
+      ],
+      group: ["Tag.name"],
+      order: [[sequelize.fn("COUNT", sequelize.col("Articles.id")), "DESC"]],
+      limit: 10,
+      subQuery: false,
+    });
 
-    const tags = appendTagList(tagList);
-
-    res.json({ tags });
+    res.json({ tags: formatTagCounts(tags) });
   } catch (error) {
     next(error);
   }
