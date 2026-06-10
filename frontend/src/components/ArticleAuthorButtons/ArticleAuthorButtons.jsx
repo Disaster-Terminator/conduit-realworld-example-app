@@ -2,7 +2,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import deleteArticle from "../../services/deleteArticle";
 
-function ArticleAuthorButtons({ body, description, slug, tagList, title }) {
+function ArticleAuthorButtons({ body, description, slug, tagList, title, status }) {
   const { headers, isAuth } = useAuth();
   const navigate = useNavigate();
 
@@ -29,7 +29,7 @@ function ArticleAuthorButtons({ body, description, slug, tagList, title }) {
       <button className="btn btn-sm" style={{ color: "#777" }}>
         <Link
           className="nav-link"
-          state={{ body, description, tagList, title }}
+          state={{ body, description, tagList, title, status }}
           to={`/editor/${slug}`}
         >
           <i className="ion-edit"></i> Edit Article
