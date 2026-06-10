@@ -195,6 +195,7 @@ const updateArticle = async (req, res, next) => {
     }
     if (description) article.description = description;
     if (body) article.body = body;
+    article.updatedAt = new Date();
     await article.save();
 
     appendTagList(article.tagList, article);

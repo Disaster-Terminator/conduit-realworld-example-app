@@ -11,7 +11,7 @@ import getArticle from "../../services/getArticle";
 function Article() {
   const { state } = useLocation();
   const [article, setArticle] = useState(state || {});
-  const { title, body, tagList, createdAt, author } = article || {};
+  const { title, body, tagList, createdAt, updatedAt, author } = article || {};
   const { headers, isAuth } = useAuth();
   const navigate = useNavigate();
   const { slug } = useParams();
@@ -47,7 +47,7 @@ function Article() {
         <hr />
 
         <div className="article-actions">
-          <ArticleMeta author={author} createdAt={createdAt}>
+          <ArticleMeta author={author} createdAt={createdAt} updatedAt={updatedAt}>
             <ArticlesButtons article={article} setArticle={setArticle} />
           </ArticleMeta>
         </div>
