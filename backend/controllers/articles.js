@@ -23,8 +23,13 @@ const allArticles = async (req, res, next) => {
   try {
     const { loggedUser } = req;
 
-    const { author, tag, favorited, limit = 3, offset = 0 } = req.query;
+    const { author, tag, favorited, limit = 3, offset = 0, status } = req.query;
+    const whereClause = {
+      status: status || "published",
+    };
+
     const searchOptions = {
+      where: whereClause,
       include: [
         {
           model: Tag,
@@ -49,7 +54,7 @@ const allArticles = async (req, res, next) => {
       const user = await User.findOne({ where: { username: favorited } });
 
       articles.rows = await user.getFavorites(searchOptions);
-      articles.count = await user.countFavorites();
+      articles.count = await user.countFavorites({ where: whereClause });
     } else {
       articles = await Article.findAndCountAll(searchOptions);
     }
@@ -76,7 +81,7 @@ const createArticle = async (req, res, next) => {
     const { loggedUser } = req;
     if (!loggedUser) throw new UnauthorizedError();
 
-    const { title, description, body, tagList } = req.body.article;
+    const { title, description, body, tagList, status } = req.body.article;
     if (!title) throw new FieldRequiredError("A title");
     if (!description) throw new FieldRequiredError("A description");
     if (!body) throw new FieldRequiredError("An article body");
@@ -90,6 +95,8 @@ const createArticle = async (req, res, next) => {
       title: title,
       description: description,
       body: body,
+      status: status || "draft",
+      userId: loggedUser.id,
     });
 
     for (const tag of tagList) {
@@ -161,6 +168,13 @@ const singleArticle = async (req, res, next) => {
     });
     if (!article) throw new NotFoundError("Article");
 
+    // Drafts are only visible to the author
+    if (article.status === "draft") {
+      if (!loggedUser || loggedUser.id !== article.author?.id) {
+        throw new NotFoundError("Article");
+      }
+    }
+
     appendTagList(article.tagList, article);
     await appendFollowers(loggedUser, article);
     await appendFavorites(loggedUser, article);
@@ -188,13 +202,17 @@ const updateArticle = async (req, res, next) => {
       throw new ForbiddenError("article");
     }
 
-    const { title, description, body } = req.body.article;
+    const { title, description, body, status } = req.body.article;
     if (title) {
       article.slug = slugify(title);
       article.title = title;
     }
     if (description) article.description = description;
     if (body) article.body = body;
+    // Only allow draft→published transition (no unpublishing)
+    if (article.status === "draft" && status === "published") {
+      article.status = "published";
+    }
     await article.save();
 
     appendTagList(article.tagList, article);

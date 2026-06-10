@@ -20,6 +20,11 @@ module.exports = {
       body: {
         type: Sequelize.TEXT,
       },
+      status: {
+        type: Sequelize.ENUM("draft", "published"),
+        defaultValue: "draft",
+        allowNull: false,
+      },
       createdAt: {
         allowNull: false,
         type: Sequelize.DATE,
