@@ -30,6 +30,27 @@ function Article() {
   return (
     <div className="article-page">
       <BannerContainer>
+        {article.status && article.status !== "published" && (
+          <span
+            style={{
+              display: "inline-block",
+              padding: "4px 12px",
+              borderRadius: "4px",
+              fontSize: "0.85rem",
+              fontWeight: "bold",
+              textTransform: "uppercase",
+              marginBottom: "8px",
+              backgroundColor:
+                article.status === "draft" ? "#f0f0f0" : "#d4edff",
+              color:
+                article.status === "draft" ? "#666" : "#0066cc",
+            }}
+          >
+            {article.status === "draft"
+              ? "Draft — Only visible to you"
+              : `Scheduled for ${new Date(article.scheduledAt).toLocaleString()}`}
+          </span>
+        )}
         <h1>{title}</h1>
         <ArticleMeta author={author} createdAt={createdAt}>
           <ArticlesButtons article={article} setArticle={setArticle} />

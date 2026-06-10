@@ -5,7 +5,7 @@ import SourceCodeLink from "../SourceCodeLink";
 import DropdownMenu from "./DropdownMenu";
 
 function Navbar() {
-  const { isAuth } = useAuth();
+  const { isAuth, loggedUser } = useAuth();
 
   return (
     <nav className="navbar navbar-light">
@@ -22,6 +22,7 @@ function Navbar() {
           {isAuth && (
             <>
               <NavItem text="New Article" icon="ion-compose" url="/editor" />
+              <NavItem text="Drafts" icon="ion-document" url={`/profile/${loggedUser?.username}/drafts`} />
               <DropdownMenu />
             </>
           )}

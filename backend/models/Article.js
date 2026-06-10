@@ -47,6 +47,12 @@ module.exports = (sequelize, DataTypes) => {
       title: DataTypes.STRING,
       description: DataTypes.TEXT,
       body: DataTypes.TEXT,
+      status: {
+        type: DataTypes.STRING,
+        defaultValue: "published",
+        validate: { isIn: [["draft", "scheduled", "published"]] },
+      },
+      scheduledAt: { type: DataTypes.DATE, allowNull: true },
     },
     {
       sequelize,

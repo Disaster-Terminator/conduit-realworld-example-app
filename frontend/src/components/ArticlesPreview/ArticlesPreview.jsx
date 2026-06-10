@@ -32,6 +32,27 @@ function ArticlesPreview({ articles, loading, updateArticles }) {
             state={article}
             className="preview-link"
           >
+            {article.status && article.status !== "published" && (
+              <span
+                style={{
+                  display: "inline-block",
+                  padding: "2px 8px",
+                  borderRadius: "4px",
+                  fontSize: "0.75rem",
+                  fontWeight: "bold",
+                  textTransform: "uppercase",
+                  marginBottom: "4px",
+                  backgroundColor:
+                    article.status === "draft" ? "#f0f0f0" : "#d4edff",
+                  color:
+                    article.status === "draft" ? "#666" : "#0066cc",
+                }}
+              >
+                {article.status === "draft"
+                  ? "Draft"
+                  : `Scheduled${article.scheduledAt ? `: ${new Date(article.scheduledAt).toLocaleString()}` : ""}`}
+              </span>
+            )}
             <h1>{article.title}</h1>
             <p>{article.description}</p>
             <span>Read more...</span>
