@@ -1187,6 +1187,12 @@ footer .attribution {
   display: block;
 }
 
+.article-meta .info .edited {
+  color: var(--text-light);
+  font-size: 0.8rem;
+  display: block;
+}
+
 .article-preview {
   border-top: 1px solid #eee;
   padding: 1.5rem 0;
