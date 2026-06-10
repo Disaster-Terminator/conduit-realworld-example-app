@@ -1,3 +1,4 @@
+const { Op } = require("sequelize");
 const {
   AlreadyTakenError,
   FieldRequiredError,
@@ -23,8 +24,24 @@ const allArticles = async (req, res, next) => {
   try {
     const { loggedUser } = req;
 
-    const { author, tag, favorited, limit = 3, offset = 0 } = req.query;
+    // Auto-publish expired scheduled articles (safety net)
+    await Article.update(
+      { published: true, scheduledAt: null },
+      { where: { published: false, scheduledAt: { [Op.lte]: new Date() } } },
+    );
+
+    const { author, tag, favorited, limit = 3, offset = 0, status } = req.query;
+
+    // Default: only return published articles
+    const whereClause = { published: true };
+
+    // If status=draft and author matches logged user, return drafts instead
+    if (status === "draft" && author && loggedUser && loggedUser.username === author) {
+      whereClause.published = false;
+    }
+
     const searchOptions = {
+      where: whereClause,
       include: [
         {
           model: Tag,
@@ -76,7 +93,7 @@ const createArticle = async (req, res, next) => {
     const { loggedUser } = req;
     if (!loggedUser) throw new UnauthorizedError();
 
-    const { title, description, body, tagList } = req.body.article;
+    const { title, description, body, tagList, published, scheduledAt } = req.body.article;
     if (!title) throw new FieldRequiredError("A title");
     if (!description) throw new FieldRequiredError("A description");
     if (!body) throw new FieldRequiredError("An article body");
@@ -90,6 +107,8 @@ const createArticle = async (req, res, next) => {
       title: title,
       description: description,
       body: body,
+      published: published !== undefined ? published : false,
+      ...(scheduledAt && { scheduledAt: scheduledAt }),
     });
 
     for (const tag of tagList) {
@@ -132,7 +151,10 @@ const articlesFeed = async (req, res, next) => {
       limit: parseInt(limit),
       offset: offset * limit,
       order: [["createdAt", "DESC"]],
-      where: { userId: authors.map((author) => author.id) },
+      where: {
+        userId: authors.map((author) => author.id),
+        published: true,
+      },
     });
 
     for (const article of articles.rows) {
@@ -161,6 +183,19 @@ const singleArticle = async (req, res, next) => {
     });
     if (!article) throw new NotFoundError("Article");
 
+    // Draft/scheduled articles: only author can access
+    if (!article.published) {
+      if (!loggedUser || loggedUser.id !== article.author.id) {
+        throw new NotFoundError("Article");
+      }
+      // Auto-publish if scheduled time has passed
+      if (article.scheduledAt && new Date(article.scheduledAt) <= new Date()) {
+        article.published = true;
+        article.scheduledAt = null;
+        await article.save();
+      }
+    }
+
     appendTagList(article.tagList, article);
     await appendFollowers(loggedUser, article);
     await appendFavorites(loggedUser, article);
@@ -188,13 +223,24 @@ const updateArticle = async (req, res, next) => {
       throw new ForbiddenError("article");
     }
 
-    const { title, description, body } = req.body.article;
+    const { title, description, body, published, scheduledAt } = req.body.article;
     if (title) {
       article.slug = slugify(title);
       article.title = title;
     }
     if (description) article.description = description;
     if (body) article.body = body;
+    // Published articles cannot be撤回为 draft
+    if (published !== undefined) {
+      if (article.published && published === false) {
+        // Ignore — published is final state
+      } else {
+        article.published = published;
+      }
+    }
+    if (scheduledAt !== undefined) {
+      article.scheduledAt = scheduledAt || null;
+    }
     await article.save();
 
     appendTagList(article.tagList, article);

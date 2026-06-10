@@ -47,6 +47,8 @@ module.exports = (sequelize, DataTypes) => {
       title: DataTypes.STRING,
       description: DataTypes.TEXT,
       body: DataTypes.TEXT,
+      published: { type: DataTypes.BOOLEAN, defaultValue: false },
+      scheduledAt: { type: DataTypes.DATE, allowNull: true },
     },
     {
       sequelize,
