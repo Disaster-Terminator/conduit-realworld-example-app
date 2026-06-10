@@ -1237,6 +1237,15 @@ footer .attribution {
   padding-bottom: 0;
 }
 
+/* Article cover image in card preview */
+.article-preview .preview-link .cover-image {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin-bottom: 1rem;
+  border-radius: 4px;
+}
+
 .btn .counter {
   font-size: 0.8rem;
 }
@@ -1310,6 +1319,46 @@ footer .attribution {
 
 .article-page .banner .article-meta .author {
   color: var(--text);
+}
+
+/* Article cover image as banner background */
+.article-page .banner.has-cover {
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  position: relative;
+  min-height: 300px;
+  display: flex;
+  align-items: flex-end;
+}
+
+.article-page .banner.has-cover::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.article-page .banner.has-cover h1 {
+  color: #fff;
+  position: relative;
+}
+
+.article-page .banner.has-cover .article-meta {
+  position: relative;
+}
+
+.article-page .banner.has-cover .article-meta .author {
+  color: #fff;
+}
+
+.article-page .banner.has-cover .btn {
+  color: #fff;
+  border-color: #fff;
+}
+
+.article-page .banner.has-cover .btn:hover {
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .article-page .banner > .container,

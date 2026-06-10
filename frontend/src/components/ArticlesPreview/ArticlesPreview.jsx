@@ -32,6 +32,14 @@ function ArticlesPreview({ articles, loading, updateArticles }) {
             state={article}
             className="preview-link"
           >
+            {article.coverImage && (
+              <img
+                src={article.coverImage}
+                alt="Cover"
+                className="cover-image"
+                onError={(e) => { e.target.style.display = "none" }}
+              />
+            )}
             <h1>{article.title}</h1>
             <p>{article.description}</p>
             <span>Read more...</span>
